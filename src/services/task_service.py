@@ -181,6 +181,7 @@ class TaskService:
     ):
         """
         Updates task fields:
+            - title
             - executor user
             - description
             - deadline
@@ -204,6 +205,9 @@ class TaskService:
         await self.ctx.require_admin_or_team_role_or_executor()
 
         task = await self.task_stmt(task_id=task_id, team_id=team_id)
+
+        if data.title is not None:
+            task.title = data.title
 
         if data.description is not None:
             task.description = data.description
@@ -247,28 +251,18 @@ class TaskService:
         old_status = task.status
         new_status = data.status
 
-        if is_executor:
-
-            if new_status is None:
-                raise c_exp.TaskStatusError()
-
-            executor_transitions: dict[StatusTask, set[StatusTask]] = {
-                StatusTask.work: {
-                    StatusTask.review,
-                    StatusTask.open,
-                },
-                StatusTask.open: {
-                    StatusTask.work,
-                },
-                StatusTask.review: {
-                    StatusTask.work,
-                },
-            }
-
-            if new_status not in executor_transitions.get(old_status, set()):
-                raise c_exp.TaskStatusError()
-
-            task.status = new_status
+        executor_transitions: dict[StatusTask, set[StatusTask]] = {
+            StatusTask.work: {
+                StatusTask.review,
+                StatusTask.open,
+            },
+            StatusTask.open: {
+                StatusTask.work,
+            },
+            StatusTask.review: {
+                StatusTask.work,
+            },
+        }
 
         if is_privileged:
 
@@ -313,8 +307,24 @@ class TaskService:
             elif old_status == StatusTask.work and new_status == StatusTask.open:
                 task.status = new_status
 
+            # A privileged user who is also the task executor keeps the
+            # executor transitions (e.g. work -> review) on top of the
+            # privileged ones.
+            elif is_executor and new_status in executor_transitions.get(old_status, set()):
+                task.status = new_status
+
             else:
                 raise c_exp.TaskStatusError()
+
+        elif is_executor:
+
+            if new_status is None:
+                raise c_exp.TaskStatusError()
+
+            if new_status not in executor_transitions.get(old_status, set()):
+                raise c_exp.TaskStatusError()
+
+            task.status = new_status
 
         else:
             raise c_exp.PermissionDeniedError()

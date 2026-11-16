@@ -64,6 +64,7 @@ class TaskCreateSchema(BaseModel):
 
 
 class UpdateTaskSchema(BaseModel):
+    title: str | None = None
     description: str | None = None
     deadline: datetime | None = None
 

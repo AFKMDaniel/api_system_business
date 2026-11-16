@@ -62,7 +62,7 @@ class CommentService:
 
         await self.ctx.require_admin_or_team_role_or_executor(team_role={TeamRole.manager, TeamRole.employee})
 
-        await self.repo.validate_task(task_id=task_id)
+        await self.repo.validate_task_id(task_id=task_id)
 
         key = RedisKeys.TASK_COMMENTS.format(task_id=task_id)
         cached = await redis.get(key)
@@ -103,7 +103,7 @@ class CommentService:
 
         await self.ctx.require_admin_or_team_role_or_executor(check_executor=True)
 
-        await self.repo.validate_task(task_id=task_id)
+        await self.repo.validate_task_id(task_id=task_id)
 
         new_comment = TaskComment(
             task_id=task_id, user_id=user_id, text=data.text
